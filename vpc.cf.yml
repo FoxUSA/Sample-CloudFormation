@@ -1,0 +1,274 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+Description: Create a 2(Public/Private) tier 2 AZ VPC with security group buses
+Parameters:
+    # General
+        VPCName:
+            Description: Environment to use
+            Type: String
+            Default: Dev
+            AllowedValues:
+                - Dev
+                - QA
+                - Production
+
+        RootDomain:
+            Description: The root domain to use for split horizon DNS
+            Type: String
+            Default: subdomain.example.com
+
+    #IPV4 CIDR
+        VPCCIDR:
+            Description: VPC CIDR
+            Type: String
+            MinLength: 9
+            MaxLength: 18
+            Default: 10.0.0.0/16
+            AllowedPattern: (\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})
+
+        #Public
+        PublicSubnetACIDR:
+            Description: Public A Subnet CIDR
+            Type: String
+            MinLength: 9
+            MaxLength: 18
+            Default: 10.0.0.0/22
+            AllowedPattern: (\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})
+
+        PublicSubnetBCIDR:
+            Description: Public B Subnet CIDR
+            Type: String
+            MinLength: 9
+            MaxLength: 18
+            Default: 10.0.4.0/22
+            AllowedPattern: (\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})
+
+        #Private
+        PrivateSubnetACIDR:
+            Description: Private A Subnet CIDR
+            Type: String
+            MinLength: 9
+            MaxLength: 18
+            Default: 10.0.8.0/22
+            AllowedPattern: (\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})
+
+        PrivateSubnetBCIDR:
+            Description: Private B Subnet CIDR
+            Type: String
+            MinLength: 9
+            MaxLength: 18
+            Default: 10.0.12.0/22
+            AllowedPattern: (\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})
+Resources:
+    # VPC
+        VPC:
+            Type: AWS::EC2::VPC
+            Properties:
+                EnableDnsSupport: true
+                EnableDnsHostnames: true
+                CidrBlock: !Ref VPCCIDR
+                Tags:
+                    -   Key: Name
+                        Value: !Ref VPCName
+
+    # Internet connectivity
+        InternetGateway:
+            Type: AWS::EC2::InternetGateway
+            Properties:
+                Tags:
+                    -   Key: Application
+                        Value: !Sub ${VPCName}-InternetGateway
+
+        InternetGatewayAttachment:
+            Type: AWS::EC2::VPCGatewayAttachment
+            Properties:
+                VpcId: !Ref VPC
+                InternetGatewayId: !Ref InternetGateway
+
+        #NAT
+        NAT:
+            Type: AWS::EC2::NatGateway
+            Properties:
+                AllocationId: !GetAtt EIP.AllocationId
+                SubnetId: !Ref PublicSubnetA
+
+        EIP:
+            Type: AWS::EC2::EIP
+            Properties:
+                Domain: !Ref VPC
+
+    # Public Routing
+        PublicRouteTable:
+            Type: AWS::EC2::RouteTable
+            Properties:
+                VpcId: !Ref VPC
+                Tags:
+                    -   Key: Name
+                        Value: !Sub ${VPCName}-PublicRouteTable
+                    -   Key: Network
+                        Value: Public
+        InternetGatewayRoute:
+            Type: AWS::EC2::Route
+            Properties:
+                RouteTableId: !Ref PublicRouteTable
+                DestinationCidrBlock: 0.0.0.0/0
+                GatewayId: !Ref InternetGateway
+
+    # Public Subnets
+        #Subnet A
+        PublicSubnetA:
+            Type: AWS::EC2::Subnet
+            Properties:
+                VpcId: !Ref VPC
+                CidrBlock: !Ref PublicSubnetACIDR
+                MapPublicIpOnLaunch: true
+                AvailabilityZone: !Select [ 0, !GetAZs ]
+                Tags:
+                    -   Key: Name
+                        Value: !Sub ${VPCName}-PublicSubnetA
+                    -   Key: Network
+                        Value: Public
+
+        PublicSubnetARouteTableAssociation:
+            Type: AWS::EC2::SubnetRouteTableAssociation
+            Properties:
+                SubnetId: !Ref PublicSubnetA
+                RouteTableId: !Ref PublicRouteTable
+
+        #Subnet B
+        PublicSubnetB:
+            Type: AWS::EC2::Subnet
+            Properties:
+                VpcId: !Ref VPC
+                CidrBlock: !Ref PublicSubnetBCIDR
+                MapPublicIpOnLaunch: true
+                AvailabilityZone: !Select [ 1, !GetAZs ]
+                Tags:
+                    -   Key: Name
+                        Value: !Sub ${VPCName}-PublicSubnetB
+                    -   Key: Network
+                        Value: Public
+
+
+        PublicSubnetBRouteTableAssociation:
+            Type: AWS::EC2::SubnetRouteTableAssociation
+            Properties:
+                SubnetId: !Ref PublicSubnetB
+                RouteTableId: !Ref PublicRouteTable
+
+    # Private Routing
+        PrivateRouteTable:
+            Type: AWS::EC2::RouteTable
+            Properties:
+                VpcId: !Ref VPC
+                Tags:
+                    -   Key: Name
+                        Value: !Sub ${VPCName}-PrivateRouteTable
+                    -   Key: Network
+                        Value: Private
+
+        NATRoute:
+            Type: AWS::EC2::Route
+            Properties:
+                RouteTableId: !Ref PrivateRouteTable
+                DestinationCidrBlock: 0.0.0.0/0
+                GatewayId: !Ref NAT
+
+    # Private Subnets
+        #Subnet A
+        PrivateSubnetA:
+            Type: AWS::EC2::Subnet
+            Properties:
+                VpcId: !Ref VPC
+                CidrBlock: !Ref PrivateSubnetACIDR
+                MapPublicIpOnLaunch: false
+                AvailabilityZone: !Select [ 0, !GetAZs ]
+                Tags:
+                    -   Key: Name
+                        Value: !Sub ${VPCName}-PrivateSubnetA
+                    -   Key: Network
+                        Value: Private
+
+        PrivateSubnetARouteTableAssociation:
+            Type: AWS::EC2::SubnetRouteTableAssociation
+            Properties:
+                SubnetId: !Ref PrivateSubnetA
+                RouteTableId: !Ref PrivateRouteTable
+
+        #Subnet B
+        PrivateSubnetB:
+            Type: AWS::EC2::Subnet
+            Properties:
+                VpcId: !Ref VPC
+                CidrBlock: !Ref PrivateSubnetBCIDR
+                MapPublicIpOnLaunch: false
+                AvailabilityZone: !Select [ 1, !GetAZs ]
+                Tags:
+                    -   Key: Name
+                        Value: !Sub ${VPCName}-PrivateSubnetB
+                    -   Key: Network
+                        Value: Private
+
+        PrivateSubnetBRouteTableAssociation:
+            Type: AWS::EC2::SubnetRouteTableAssociation
+            Properties:
+                SubnetId: !Ref PrivateSubnetB
+                RouteTableId: !Ref PrivateRouteTable
+
+    # Security Buses
+        BastionBus:
+            Type: AWS::EC2::SecurityGroup
+            Properties:
+                GroupName: !Sub ${VPCName}-BastionBus
+                GroupDescription: Security group bus which consumers and producers can be attached
+                Tags:
+                    -   Key: Name
+                        Value: !Sub ${VPCName}-BastionBus
+                VpcId: !Ref VPC
+
+    # DNS
+        PublicDNS:
+            Type: AWS::Route53::HostedZone
+            Properties:
+                Name: !Ref RootDomain
+
+        PrivateDNS:
+            Type: AWS::Route53::HostedZone
+            Properties:
+                Name: !Ref RootDomain
+                VPCs:
+                    -   VPCId: !Ref VPC
+                        VPCRegion: !Ref AWS::Region
+Outputs:
+    # General
+        VPC:
+            Description: VPC ID
+            Value: !Ref VPC
+            Export:
+                Name: !Sub ${VPCName}-VPC
+
+    # Subnets
+        PublicSubnets:
+            Description: List of public subnet ids
+            Value: !Join [ "|", [!Ref PublicSubnetA, !Ref PublicSubnetB] ]
+            Export:
+                Name: !Sub ${VPCName}-PublicSubnets
+
+        PrivateSubnets:
+            Description: List of private subnet ids
+            Value: !Join [ "|", [!Ref PrivateSubnetA, !Ref PrivateSubnetB] ]
+            Export:
+                Name: !Sub ${VPCName}-PrivateSubnets
+
+    #DNS
+        PublicDNS:
+            Description: Route53 Hosted Zone ID
+            Value: !Ref PublicDNS
+            Export:
+                Name: !Sub ${VPCName}-PublicDNS
+
+        PrivateDNS:
+            Description: Route53 Hosted Zone ID
+            Value: !Ref PrivateDNS
+            Export:
+                Name: !Sub ${VPCName}-PrivateDNS
