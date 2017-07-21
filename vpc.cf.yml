@@ -1,6 +1,6 @@
 ---
 AWSTemplateFormatVersion: 2010-09-09
-Description: Create a 2(Public/Private) tier 2 AZ VPC with security group buses
+Description: Create a 2(Public/Private) tier 2 AZ VPC with security group buses, DNS, NAT, Export Values
 Parameters:
     # General
         VPCName:
@@ -15,7 +15,7 @@ Parameters:
         RootDomain:
             Description: The root domain to use for split horizon DNS
             Type: String
-            Default: subdomain.example.com
+            Default: subdomain.example47.com
 
     #IPV4 CIDR
         VPCCIDR:
@@ -27,6 +27,14 @@ Parameters:
             AllowedPattern: (\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})
 
         #Public
+        PublicSubnetsCIDR:
+            Description: Public Subnet CIDR
+            Type: String
+            MinLength: 9
+            MaxLength: 18
+            Default: 10.0.0.0/21
+            AllowedPattern: (\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})
+
         PublicSubnetACIDR:
             Description: Public A Subnet CIDR
             Type: String
@@ -44,6 +52,14 @@ Parameters:
             AllowedPattern: (\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})
 
         #Private
+        PrivateSubnetsCIDR:
+            Description: Private Subnet CIDR
+            Type: String
+            MinLength: 9
+            MaxLength: 18
+            Default: 10.0.8.0/21
+            AllowedPattern: (\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})
+
         PrivateSubnetACIDR:
             Description: Private A Subnet CIDR
             Type: String
@@ -95,7 +111,7 @@ Resources:
         EIP:
             Type: AWS::EC2::EIP
             Properties:
-                Domain: !Ref VPC
+                Domain: vpc
 
     # Public Routing
         PublicRouteTable:
@@ -172,7 +188,7 @@ Resources:
             Properties:
                 RouteTableId: !Ref PrivateRouteTable
                 DestinationCidrBlock: 0.0.0.0/0
-                GatewayId: !Ref NAT
+                NatGatewayId: !Ref NAT
 
     # Private Subnets
         #Subnet A
@@ -247,6 +263,39 @@ Outputs:
             Export:
                 Name: !Sub ${VPCName}-VPC
 
+        #Input passthrough
+        VPCCIDR:
+            Description: CIDR
+            Value: !Ref VPCCIDR
+            Export:
+                Name: !Sub ${VPCName}-VPCCIDR
+
+        PublicSubnetsCIDR:
+            Description: CIDR
+            Value: !Ref PublicSubnetsCIDR
+            Export:
+                Name: !Sub ${VPCName}-PublicSubnetsCIDR
+
+        PrivateSubnetsCIDR:
+            Description: CIDR
+            Value: !Ref PrivateSubnetsCIDR
+            Export:
+                Name: !Sub ${VPCName}-PrivateSubnetsCIDR
+
+
+    # Route Tables
+        PublicRouteTable:
+            Description: Route Table ID
+            Value: !Ref PublicRouteTable
+            Export:
+                Name: !Sub ${VPCName}-PublicRouteTable
+
+        PrivateRouteTable:
+            Description: Route Table ID
+            Value: !Ref PrivateRouteTable
+            Export:
+                Name: !Sub ${VPCName}-PrivateRouteTable
+
     # Subnets
         PublicSubnets:
             Description: List of public subnet ids
@@ -260,7 +309,7 @@ Outputs:
             Export:
                 Name: !Sub ${VPCName}-PrivateSubnets
 
-    #DNS
+    # DNS
         PublicDNS:
             Description: Route53 Hosted Zone ID
             Value: !Ref PublicDNS
@@ -272,3 +321,10 @@ Outputs:
             Value: !Ref PrivateDNS
             Export:
                 Name: !Sub ${VPCName}-PrivateDNS
+
+    #Security Group Buses
+        BastionBus:
+            Description: Security group  for consumers and producers toattached
+            Value: !Ref BastionBus
+            Export:
+                Name: !Sub ${VPCName}-BastionBus
