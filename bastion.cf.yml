@@ -12,33 +12,108 @@ Parameters:
                 - QA
                 - Production
 
+        SSHKey:
+            Description: SSH Key to launch instance(s) with
+            Type: AWS::EC2::KeyPair::KeyName
+
         AMI:
             Description: AMI to use
             Type: AWS::EC2::Image::Id
             Default: ami-6df1e514 #Amazon Linux us-west-2
 Resources:
-    BastionSecurityGroup:
-        Type: AWS::EC2::SecurityGroup
-        Properties:
-            GroupName: !Sub ${VPCName}-BastionSecurityGroup
-            GroupDescription: Security group to allow access to bastion
-            SecurityGroupIngress:
-                #Outbound access
-                -   IpProtocol: tcp
-                    FromPort: 22
-                    ToPort: 22
-                    CidrIp: 0.0.0.0/0
+    #Instance resources
+        BastionSecurityGroup:
+            Type: AWS::EC2::SecurityGroup
+            Properties:
+                GroupName: !Sub ${VPCName}-BastionSecurityGroup
+                GroupDescription: Security group to allow access to bastion
+                SecurityGroupIngress:
+                    #Outbound access
+                    -   IpProtocol: tcp
+                        FromPort: 22
+                        ToPort: 22
+                        CidrIp: 0.0.0.0/0
 
-                #Allow bastions to access other bastions
-                # -   IpProtocol: tcp
-                #     FromPort: 22
-                #     ToPort: 22
-                #     SourceSecurityGroupId:
-                #         Fn::ImportValue: !Sub ${VPCName}-BastionBus
+                    #Allow bastions to access other bastions
+                    # -   IpProtocol: tcp
+                    #     FromPort: 22
+                    #     ToPort: 22
+                    #     SourceSecurityGroupId:
+                    #         Fn::ImportValue: !Sub ${VPCName}-BastionBus
 
-            Tags:
-                -   Key: Name
-                    Value: !Sub ${VPCName}-BastionSecurityGroup
-            VpcId: !Ref VPC
-    #TODO
-Outputs:
+                Tags:
+                    -   Key: Name
+                        Value: !Sub ${VPCName}-BastionSecurityGroup
+                VpcId:
+                    Fn::ImportValue: !Sub ${VPCName}-VPC
+
+        Instance:
+            Type: AWS::EC2::Instance
+            Properties:
+                ImageId: !Ref AMI
+                KeyName: !Ref SSHKey
+                InstanceType: t2.small
+                SecurityGroupIds:
+                    -   !Ref BastionSecurityGroup
+                    -   Fn::ImportValue: !Sub ${VPCName}-BastionBus
+                SubnetId:
+                    Fn::ImportValue: !Sub ${VPCName}-PublicSubnetA
+                BlockDeviceMappings:
+                    -   DeviceName: /dev/xvda
+                        Ebs:
+                            VolumeType: gp2
+                            DeleteOnTermination: true
+                            VolumeSize: 20
+                UserData:
+                    Fn::Base64: !Sub |
+                        #!/bin/bash
+                        echo hello
+                        /opt/aws/bin/cfn-signal -e $? --stack ${AWS::StackName} \
+                                                --resource Instance \
+                                                --region ${AWS::Region}
+                Tags:
+                    -   Key: Name
+                        Value: !Sub ${VPCName}-Bastion
+            CreationPolicy:
+                ResourceSignal:
+                    Timeout: PT5M
+
+        EIP:
+            Type: AWS::EC2::EIP
+            Properties:
+                InstanceId: !Ref Instance
+                Domain: vpc
+
+    #DNS
+        PublicDNS:
+            Type: AWS::Route53::RecordSet
+            Properties:
+                Comment: Bastion Public
+                HostedZoneId:
+                    Fn::ImportValue: !Sub ${VPCName}-PublicDNS
+                Name:
+                    Fn::Sub:
+                        -   bastion.${RootDomain}
+                        -   RootDomain:
+                                Fn::ImportValue: !Sub ${VPCName}-RootDomain
+                ResourceRecords:
+                    -   !Ref EIP
+                TTL: 600
+                Type: A
+
+        PrivateDNS:
+            Type: AWS::Route53::RecordSet
+            Properties:
+                Comment: Bastion Private
+                HostedZoneId:
+                    Fn::ImportValue: !Sub ${VPCName}-PrivateDNS
+                Name:
+                    Fn::Sub:
+                        -   bastion.${RootDomain}
+                        -   RootDomain:
+                                Fn::ImportValue: !Sub ${VPCName}-RootDomain
+                ResourceRecords:
+                    -   !GetAtt Instance.PrivateIp
+                TTL: 600
+                Type: A
+Outputs: {}

@@ -282,7 +282,6 @@ Outputs:
             Export:
                 Name: !Sub ${VPCName}-PrivateSubnetsCIDR
 
-
     # Route Tables
         PublicRouteTable:
             Description: Route Table ID
@@ -297,19 +296,39 @@ Outputs:
                 Name: !Sub ${VPCName}-PrivateRouteTable
 
     # Subnets
-        PublicSubnets:
-            Description: List of public subnet ids
-            Value: !Join [ "|", [!Ref PublicSubnetA, !Ref PublicSubnetB] ]
+        # Public
+        PublicSubnetA:
+            Description: public subnet id
+            Value: !Ref PublicSubnetA
             Export:
-                Name: !Sub ${VPCName}-PublicSubnets
+                Name: !Sub ${VPCName}-PublicSubnetA
 
-        PrivateSubnets:
-            Description: List of private subnet ids
-            Value: !Join [ "|", [!Ref PrivateSubnetA, !Ref PrivateSubnetB] ]
+        PublicSubnetB:
+            Description: public subnet id
+            Value: !Ref PublicSubnetB
             Export:
-                Name: !Sub ${VPCName}-PrivateSubnets
+                Name: !Sub ${VPCName}-PublicSubnetB
+
+        # Private
+        PrivateSubnetA:
+            Description: private subnet id
+            Value: !Ref PrivateSubnetA
+            Export:
+                Name: !Sub ${VPCName}-PrivateSubnetA
+
+        PrivateSubnetB:
+            Description: private subnet id
+            Value: !Ref PrivateSubnetB
+            Export:
+                Name: !Sub ${VPCName}-PrivateSubnetB
 
     # DNS
+        RootDomain:
+            Description: Root domain
+            Value: !Ref RootDomain
+            Export:
+                Name: !Sub ${VPCName}-RootDomain
+
         PublicDNS:
             Description: Route53 Hosted Zone ID
             Value: !Ref PublicDNS
@@ -324,7 +343,7 @@ Outputs:
 
     #Security Group Buses
         BastionBus:
-            Description: Security group  for consumers and producers toattached
+            Description: Security group for consumers and producers toattached
             Value: !Ref BastionBus
             Export:
                 Name: !Sub ${VPCName}-BastionBus
