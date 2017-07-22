@@ -1,0 +1,44 @@
+---
+AWSTemplateFormatVersion: 2010-09-09
+Description: Create bastion
+Parameters:
+    # General
+        VPCName:
+            Description: Environment to use
+            Type: String
+            Default: Dev
+            AllowedValues:
+                - Dev
+                - QA
+                - Production
+
+        AMI:
+            Description: AMI to use
+            Type: AWS::EC2::Image::Id
+            Default: ami-6df1e514 #Amazon Linux us-west-2
+Resources:
+    BastionSecurityGroup:
+        Type: AWS::EC2::SecurityGroup
+        Properties:
+            GroupName: !Sub ${VPCName}-BastionSecurityGroup
+            GroupDescription: Security group to allow access to bastion
+            SecurityGroupIngress:
+                #Outbound access
+                -   IpProtocol: tcp
+                    FromPort: 22
+                    ToPort: 22
+                    CidrIp: 0.0.0.0/0
+
+                #Allow bastions to access other bastions
+                # -   IpProtocol: tcp
+                #     FromPort: 22
+                #     ToPort: 22
+                #     SourceSecurityGroupId:
+                #         Fn::ImportValue: !Sub ${VPCName}-BastionBus
+
+            Tags:
+                -   Key: Name
+                    Value: !Sub ${VPCName}-BastionSecurityGroup
+            VpcId: !Ref VPC
+    #TODO
+Outputs:
