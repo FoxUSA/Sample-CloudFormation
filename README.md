@@ -12,6 +12,13 @@ Do not go crazy with parameters. Use parameters for things that actually differ 
 
 Use stack exports to track backplane information such as VPC and subnets. You can easily reference the output by convention along with an environment parameter to retrieve environment specific information
 
+## Format
+Use Yaml for CloudFormation you write. [It is so much better](https://www.trek10.com/blog/cloudformation-yaml-and-why-its-awesome/). Yaml is better if humans are writing CloudFormation. If your using a pre-parser it does not matter as much.
+
+Yaml is a superset of JSON[[1]](https://stackoverflow.com/questions/1726802/what-is-the-difference-between-yaml-and-json-when-to-prefer-one-over-the-other). In regards to CloudFormation you can switch back and forth with an [AWS provided tool](https://github.com/awslabs/aws-cfn-template-flip).
+
+Use `Sub` instead of `Join` to concatenate variables and text. Its newer and better[1+1=2].
+
 ## Patterns
 ### Producer/Consumer pattern
 To leverage interconnectivity between resources, I generally do not recommend using IP based Security Groups(SG) except if they are broad(Summary masks). IE the public subnet is allowed to access this or this VPC is allows to access this.
