@@ -39,5 +39,9 @@ A network interface by default can have up to 5 security groups attached [[1]](h
 You can see examples of this in the templates in this repo.
 
 ## Why should you listen to my
-- I have AWS certs one of which is a pro level.
+- I have 3 AWS certs one of which is a pro level.
 - I work in Professional Services so I basically do the same thing over and over with dozens of clients. This is the best way to date to wire stuff up.
+- I have a classic Computer Science background. I prefer simplicity and first principal thought. Buses are used by hardware engineers over something like a full wire mesh do to simplicity and economic constraints. All I have done is simply realize you can do that with security groups.
+
+## License
+© 2017 - Distributed under the MIT License
