@@ -47,7 +47,7 @@ You can see examples of this in the templates in this repo.
 
 ## Why should you listen to me
 - I have 3 AWS certs one of which is a pro level.
-- I work in Professional Services so I basically do the same thing over and over with dozens of clients. This is the best way to date to wire stuff up.
+- I work in Professional Services so I basically do the same thing over and over with dozens of clients. This is the best way I have found to wire stuff up. This is OpenSource so if you have a better way please open an issue or a Pull Request.
 - I have a classic Computer Science background. I prefer simplicity and first principal thought. Buses are used by hardware engineers over something like a full wire mesh do to simplicity and economic constraints. All I have done is simply realize you can do that with security groups.
 
 ## License
